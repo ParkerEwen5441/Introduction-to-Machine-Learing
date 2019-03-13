@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 
 from sklearn.metrics import mean_squared_error
-from sklearn.linear_model import Ridge as Ridge
-from sklearn.model_selection import train_test_split as train_test_split
+from sklearn.linear_model import Lasso as Lasso
+from sklearn.feature_selection import SelectKBest, chi2
 
 import csv
 
@@ -40,28 +40,28 @@ def SplitData(data, y, chunkSize):
 
 
 def Train(data, y, kFold, lambd):
-    RMSE = 0
     XTrain = np.empty((0, 21))
     YTrain = np.empty((0, ))
 
     for i in range(0, 10):
         if i == kFold:
             continue
-        X = data[i][:, :]
-        Y = y[i]
-        XTrain = np.append(XTrain, X, axis=0)
-        YTrain = np.append(YTrain, Y, axis=0)
+        XTrain = np.append(XTrain, data[i][:, :], axis=0)
+        YTrain = np.append(YTrain, y[i], axis=0)
 
     XTest = data[kFold][:, :]
     YTest = y[kFold]
 
-    model = Ridge(alpha=lambd)
+    # selector = SelectKBest(chi2, k='all').fit(XTrain, YTrain)
+    # X_new = selector.transform(XTrain)
+    model = Lasso(alpha=lambd, fit_intercept=False)
     model.fit(XTrain, YTrain)
-
     YPred = model.predict(XTest)
-    RMSE = RMSE + mean_squared_error(YTest, YPred) ** 0.5
+    RMSE = mean_squared_error(YTest, YPred) ** 0.5
+    scores = model.coef_
+    print (model.intercept_)
 
-    return RMSE, model.coef_
+    return RMSE, scores
 
 
 def main():
@@ -88,13 +88,10 @@ def main():
     val, idx = min((val, idx) for (idx, val) in enumerate(RMSE))
     bestWeights = weights[idx, :]
 
-    testingWeights = np.matmul(np.linalg.inv(np.matmul(phi.T, phi)),
-                               np.matmul(phi.T, y))
-
-    print (testingWeights)
+    print (bestWeights)
     with open('ParkerTest2.csv', "w") as file:
         writer = csv.writer(file, delimiter='\n')
-        writer.writerow(testingWeights)
+        writer.writerow(bestWeights)
 
 
 if __name__ == '__main__':
