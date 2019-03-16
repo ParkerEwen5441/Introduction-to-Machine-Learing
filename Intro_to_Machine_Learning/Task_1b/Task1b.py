@@ -42,7 +42,7 @@ def Train(data, y, kFold, lambd):
     XTrain = np.empty((0, 20))
     YTrain = np.empty((0, ))
 
-    for i in range(0, 10):
+    for i in range(0, 100):
         if i == kFold:
             continue
         XTrain = np.append(XTrain, data[i][:, :], axis=0)
@@ -62,9 +62,9 @@ def Train(data, y, kFold, lambd):
 
 
 def main():
-    kFolds = 10
+    kFolds = 100
     # lambdas = list(range(1, 100))
-    lambdas = [0.01, 0.03, 0.05, 0.07, 0.09, 0.11, 0.13, 0.15]
+    lambdas = [0.17, 0.171, 0.172, 0.173]
 
     RMSE = np.zeros((len(lambdas), ))
     inter = np.zeros((len(lambdas), ))
