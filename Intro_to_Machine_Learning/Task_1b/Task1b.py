@@ -1,9 +1,9 @@
+import os
 import numpy as np
 import pandas as pd
 
 from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import Lasso as Lasso
-from sklearn.feature_selection import SelectKBest, chi2
 
 import csv
 
@@ -25,10 +25,9 @@ def x2Phi(data):
     phi1 = np.square(data[:, 2:])
     phi2 = np.exp(data[:, 2:])
     phi3 = np.cos(data[:, 2:])
-    phi4 = np.ones((len(data), 1))
+    # phi4 = np.ones((len(data), 1))
 
-    phi = np.concatenate((phi0, phi1, phi2, phi3, phi4), axis=1)
-
+    phi = np.concatenate((phi0, phi1, phi2, phi3), axis=1)
     y = data[:, 1]
 
     return phi, y
@@ -40,8 +39,12 @@ def SplitData(data, y, chunkSize):
 
 
 def Train(data, y, kFold, lambd):
-    XTrain = np.empty((0, 21))
+    XTrain = np.empty((0, 20))
     YTrain = np.empty((0, ))
+    features = np.zeros((1, 20))
+    scores = np.zeros((16, 20))
+    RMSE = np.zeros((16, ))
+    model_int = np.zeros((16, 0))
 
     for i in range(0, 10):
         if i == kFold:
@@ -49,11 +52,18 @@ def Train(data, y, kFold, lambd):
         XTrain = np.append(XTrain, data[i][:, :], axis=0)
         YTrain = np.append(YTrain, y[i], axis=0)
 
-    XTest = data[kFold][:, :]
-    YTest = y[kFold]
+    for k in range (5, 20):
+        selector = SelectKBest(f_regression, k=k)
+        XNew = selector.fit_transform(XTrain, YTrain)
+        features[0, :] = selector.get_support()
 
-    # selector = SelectKBest(chi2, k='all').fit(XTrain, YTrain)
-    # X_new = selector.transform(XTrain)
+        XTest = data[kFold][:, :]
+        YTest = y[kFold]
+
+        mask = np.array(features, dtype=bool)
+        mask = np.repeat(mask, YTest.shape[0], axis=0)
+        XTest = XTest[mask].reshape((YTest.shape[0], k))
+        
     model = Lasso(alpha=lambd, fit_intercept=False)
     model.fit(XTrain, YTrain)
     YPred = model.predict(XTest)
@@ -61,35 +71,44 @@ def Train(data, y, kFold, lambd):
     scores = model.coef_
     print (model.intercept_)
 
-    return RMSE, scores
+    val, idx = min((val, idx) for (idx, val) in enumerate(RMSE))
+    best_score = scores[idx, :]
+    best_RMSE = RMSE[idx]
+    best_intercept = model_int[idx]
+    
+    return best_RMSE, best_score, best_intercept
 
 
 def main():
-    RMSE = np.empty((5, 1))
-    weights = np.empty((5, 21))
-
     kFolds = 10
-    lambdas = [0.1, 1, 10, 100, 1000]
+    # lambdas = list(range(1, 100))
+    lambdas = [0.17, 0.171, 0.172, 0.173]
+
+    RMSE = np.zeros((len(lambdas), ))
+    inter = np.zeros((len(lambdas), ))
+    weights = np.zeros((len(lambdas), 20))
 
     data = ReadFile()
     phi, y = x2Phi(data)
     splitData, splitY = SplitData(phi, y, int(len(phi) / kFolds))
 
-    # X_train,X_test,y_train,y_test=train_test_split(splitData,splitY,test_size=0.1)
-
     for l in range(len(lambdas)):
         for k in range(kFolds):
-            r, w = Train(splitData, splitY, k, lambdas[l])
+            r, w, inters = Train(splitData, splitY, k, lambdas[l])
             RMSE[l] = RMSE[l] + r
-            weights[l] = weights[l] + w
-        RMSE[l] = RMSE[l] / kFolds
-        weights[l] = weights[l] / kFolds
+            inter[l] = inter[l] + inters
+            weights[l, :] = weights[l, :] + w
 
+    RMSE = RMSE / kFolds
+    inter = inter / kFolds
+    weights = weights / kFolds
     val, idx = min((val, idx) for (idx, val) in enumerate(RMSE))
     bestWeights = weights[idx, :]
+    print (inter[idx])
+    print (type(bestWeights))
+    bestWeights = np.append(bestWeights, inter[idx])
 
-    print (bestWeights)
-    with open('ParkerTest2.csv', "w") as file:
+    with open('param_output.csv', "w") as file:
         writer = csv.writer(file, delimiter='\n')
         writer.writerow(bestWeights)
 
