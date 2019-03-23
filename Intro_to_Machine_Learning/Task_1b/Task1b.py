@@ -4,6 +4,7 @@ import pandas as pd
 
 from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import Lasso as Lasso
+from sklearn.feature_selection import SelectKBest, f_regression
 
 import csv
 
@@ -41,28 +42,59 @@ def SplitData(data, y, chunkSize):
 def Train(data, y, kFold, lambd):
     XTrain = np.empty((0, 20))
     YTrain = np.empty((0, ))
+    features = np.zeros((1, 20))
+    scores = np.zeros((16, 20))
+    RMSE = np.zeros((16, ))
+    model_int = np.zeros((16, 0))
 
-    for i in range(0, 100):
+    for i in range(0, 10):
         if i == kFold:
             continue
         XTrain = np.append(XTrain, data[i][:, :], axis=0)
         YTrain = np.append(YTrain, y[i], axis=0)
 
-    XTest = data[kFold][:, :]
-    YTest = y[kFold]
 
-    model = Lasso(alpha=lambd, fit_intercept=True)
-    model.fit(XTrain, YTrain)
+    for k in range (5, 20):
+        selector = SelectKBest(f_regression, k=k)
+        XNew = selector.fit_transform(XTrain, YTrain)
+        features[0, :] = selector.get_support()
 
-    YPred = model.predict(XTest)
-    RMSE = mean_squared_error(YTest, YPred) ** 0.5
-    scores = model.coef_
+        XTest = data[kFold][:, :]
+        YTest = y[kFold]
 
-    return RMSE, scores, model.intercept_
+        mask = np.array(features, dtype=bool)
+        mask = np.repeat(mask, YTest.shape[0], axis=0)
+        XTest = XTest[mask].reshape((YTest.shape[0], k))
+
+        model = Lasso(alpha=lambd, fit_intercept=True)
+        model.fit(XNew, YTrain)
+        model_int[k - 5] = model.intercept_
+
+        YPred = model.predict(XTest)
+        RMSE[k - 5] = mean_squared_error(YTest, YPred) ** 0.5
+
+        idx = 0
+        for feature in range(features.shape[1]):
+            if features[0, feature]:
+                scores[k - 5, idx] = model.coef_[idx]
+                idx += 1
+
+    val, idx = min((val, idx) for (idx, val) in enumerate(RMSE))
+    best_score = scores[idx, :]
+    best_RMSE = RMSE[idx]
+    best_intercept = model_int[idx]
+
+    print (model_int)
+    print (RMSE)
+    print (best_score)
+    print (best_RMSE)
+    print (best_intercept)
+    input("Press Enter to continue...")
+    return best_RMSE, best_score, best_intercept
 
 
 def main():
-    kFolds = 100
+    kFolds = 10
     # lambdas = list(range(1, 100))
     lambdas = [0.17, 0.171, 0.172, 0.173]
 
