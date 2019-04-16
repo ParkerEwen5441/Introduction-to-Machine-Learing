@@ -24,9 +24,8 @@ def main():
     for test in range(tests):
         tf.set_random_seed(test)
         model = keras.Sequential([
-            keras.layers.Dense(256, activation=tf.nn.elu),
-            keras.layers.Dense(50, activation=tf.nn.elu),
-            keras.layers.Dense(256, activation=tf.nn.elu),
+            keras.layers.Dense(256, activation=tf.nn.relu6),
+            keras.layers.Dense(256, activation=tf.nn.relu6),
             keras.layers.Dense(3, activation=tf.nn.softmax)])
         model.compile(optimizer='adam',
                       loss='sparse_categorical_crossentropy',
