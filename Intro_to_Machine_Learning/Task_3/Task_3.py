@@ -71,14 +71,34 @@ class Data:
 
 
 class NeuralNet:
+    """
+    Class for training neural net using training data.
+    """
     def __init__(self, train, epochs):
         self.train = train
         self.epochs = epochs
         self.model = []
 
+        """
+        train: Data class
+            Data class containing the training data
+
+        epochs: int
+            Number of epochs to use in training
+
+        model: tensorflow model
+            Model trained to predict class
+        """
+
         self.trainnet()
 
     def trainnet(self):
+        '''
+        Trains neural net to fit data to pass hard baseline.
+        Input: N/A
+        Output: model - trained model used to preict class
+        '''
+
         tf.set_random_seed(100)
         self.model = keras.Sequential([
             keras.layers.Dense(1024, activation=keras.activations.relu),
@@ -93,16 +113,19 @@ class NeuralNet:
         self.model.compile(optimizer='adam',
                            loss='sparse_categorical_crossentropy',
                            metrics=['accuracy'])
-        # es = EarlyStopping(monitor='val_acc', mode='max', min_delta=0.001)
-        # self.model.fit(self.train.features_train, self.train.classes_train,
-        #                batch_size=900, epochs=self.epochs,
-        #                callbacks=[es], validation_split=0.1)
         self.model.fit(self.train.features_train, self.train.classes_train,
                        batch_size=900, epochs=self.epochs,
                        validation_split=0.1)
 
 
 def PCAApply(train, test):
+    '''
+        Performs PCA decomposition on both the testing and training
+         data to reduce feature dimensionality.
+        Input: train - Data class of training data
+               test  - Data class of testing data
+        Output: N/A
+    '''
     scaler = StandardScaler()
     scaler.fit(train.features_train)
     train.features_train = scaler.transform(train.features_train)
@@ -115,6 +138,14 @@ def PCAApply(train, test):
 
 
 def Output(predictions, Id):
+    '''
+        Writes the predicted classes and their respective Id number
+         into a csv file
+        Input: predictions - predicted class
+               Id          - case number for each prediction
+        Output: N/A
+    '''
+
     output = np.c_[np.arange(Id[0], Id[1]), predictions]
 
     with open('ouput.csv', "w") as file:
@@ -125,6 +156,12 @@ def Output(predictions, Id):
 
 
 def main():
+    '''
+        Reads testing and training data from h5 files into Data class,
+         performs PCA decomposition on these datasets, fits neural net
+         model to training data, predicts testing data, then writes
+         predictions to csv file.
+    '''
     train = Data("train.h5", True)
     test = Data("test.h5", False)
 
